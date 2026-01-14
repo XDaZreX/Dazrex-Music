@@ -84,4 +84,4 @@ async def stop(ctx):
 async def site_info(ctx):
     await ctx.send("🌐 Мой сайт на Cloudflare Pages: https://dazrex.pages.dev")
 
-bot.run('MTQ2MDczNDA1MzI0OTcxMjEyOQ.G3z2Cg.GPa97vaNVD5hAMyOQFp8UgwbeIEhGsveKuB_fE')
+bot.run('MTQ2MDczNDA1MzI0OTcxMjEyOQ.G2w4pY.7V3RiNHm_ztvUlXPjL0zpZP6S_Es1Dj2EdMNvM')
