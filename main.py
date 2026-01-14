@@ -1,87 +1,101 @@
+import os
 import discord
 from discord.ext import commands
 import yt_dlp
 import asyncio
 
-# Настройки для идеального звука на ПК (высокий битрейт)
+# Настройки для идеального звука
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
     'options': '-vn -b:a 192k'
 }
 
-# Настройки поиска: YouTube + SoundCloud
 YDL_OPTIONS = {
     'format': 'bestaudio/best',
     'default_search': 'ytsearch',
     'noplaylist': True,
     'quiet': True,
-    'no_warnings': True,
 }
 
 class MusicBot(commands.Bot):
     def __init__(self):
-        # Автоматический статус: "Слушает dazrex.pages.dev"
+        # Статус со ссылкой на твой сайт
         activity = discord.Activity(type=discord.ActivityType.listening, name="dazrex.pages.dev")
-        super().__init__(command_prefix='!', intents=discord.Intents.all(), activity=activity)
+        super().__init__(command_prefix='!', intents=discord.Intents.all(), activity=activity, help_command=None)
 
     async def on_ready(self):
-        print("\n" + "═"*50)
-        print(f"🚀 СИСТЕМА DAZREX ЗАПУЩЕНА")
-        print(f"🌐 МОЙ САЙТ: https://dazrex.pages.dev")
-        print(f"👤 БОТ: {self.user.name}")
-        print("═"*50 + "\n")
+        print(f"🚀 DAZREX SYSTEM ONLINE: {self.user.name}")
 
 bot = MusicBot()
 
-@bot.command(name='p', aliases=['play', 'плей', 'играть'])
+@bot.command(name='help', aliases=['хелп', 'помощь'])
+async def help_command(ctx):
+    embed = discord.Embed(
+        title="🤖 Bot Commands / Команды бота",
+        description="Music & Info system for **dazrex.pages.dev**",
+        color=0x00ff00
+    )
+    
+    # English Section
+    embed.add_field(
+        name="🇬🇧 English",
+        value=(
+            "`!p [link/name]` - Play music from YT / SoundCloud / Spotify\n"
+            "`!s` - Stop music and leave channel\n"
+            "`!info` - Show owner's website\n"
+            "`!help` - Show this message"
+        ),
+        inline=False
+    )
+    
+    # Russian Section
+    embed.add_field(
+        name="🇷🇺 Русский",
+        value=(
+            "`!p [ссылка/название]` - Играть музыку из YT / SoundCloud / Spotify\n"
+            "`!s` - Остановить музыку и выйти\n"
+            "`!info` - Показать сайт владельца\n"
+            "`!help` - Показать это сообщение"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text="Developed for dazrex.pages.dev")
+    await ctx.send(embed=embed)
+
+@bot.command(name='p', aliases=['play', 'плей'])
 async def play(ctx, *, search: str):
     if not ctx.author.voice:
-        return await ctx.send("❌ Сначала зайди в голосовой канал!")
+        return await ctx.send("❌ Join a voice channel first! / Сначала зайди в голосовой канал!")
 
     vc = ctx.voice_client or await ctx.author.voice.channel.connect()
 
     async with ctx.typing():
-        # Если кидаешь ссылку на Spotify - ищем её на YouTube автоматически
-        query = f"ytsearch:{search}" if not search.startswith("http") or "spotify" in search else search
-        
+        query = f"ytsearch:{search}" if not search.startswith("http") else search
         with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-            try:
-                info = ydl.extract_info(query, download=False)
-                if 'entries' in info: info = info['entries'][0]
-                
-                url = info['url']
-                title = info.get('title', 'Без названия')
-                thumb = info.get('thumbnail', '')
-                
-                source = discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
-                
-                if vc.is_playing(): vc.stop()
-                vc.play(source)
+            info = ydl.extract_info(query, download=False)
+            if 'entries' in info: info = info['entries'][0]
+            url = info['url']
+            
+            source = discord.FFmpegPCMAudio(url, **FFMPEG_OPTIONS)
+            if vc.is_playing(): vc.stop()
+            vc.play(source)
+            await ctx.send(f"🎶 **Playing:** {info['title']}\n🔗 [dazrex.pages.dev](https://dazrex.pages.dev)")
 
-                # КРАСИВАЯ КАРТОЧКА С ТВОИМ САЙТОМ
-                embed = discord.Embed(
-                    title="🎶 СЕЙЧАС ИГРАЕТ",
-                    description=f"**{title}**\n\n🔗 [Посети мой сайт](https://dazrex.pages.dev)",
-                    color=0x5865F2 # Фирменный цвет Discord
-                )
-                if thumb: embed.set_thumbnail(url=thumb)
-                embed.add_field(name="Качество", value="192kbps Hi-Fi", inline=True)
-                embed.add_field(name="Источник", value="YouTube HQ", inline=True)
-                embed.set_footer(text="Cloudflare Pages | dazrex.pages.dev", icon_url=bot.user.avatar.url if bot.user.avatar else None)
-                
-                await ctx.send(embed=embed)
-
-            except Exception as e:
-                await ctx.send(f"⚠️ Ошибка: {e}")
-
-@bot.command(name='s', aliases=['stop', 'стоп', 'выход'])
+@bot.command(name='s', aliases=['stop', 'стоп'])
 async def stop(ctx):
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
-        await ctx.send("⏹ Музыка выключена. Жду тебя на **dazrex.pages.dev**")
+        await ctx.send("⏹ Stopped / Остановлено")
 
-@bot.command(name='сайт', aliases=['site'])
+@bot.command(name='info', aliases=['инфо', 'site'])
 async def site_info(ctx):
-    await ctx.send("🌐 Мой сайт на Cloudflare Pages: https://dazrex.pages.dev")
+    await ctx.send("🌐 My website / Мой сайт: https://dazrex.pages.dev")
 
-bot.run('MTQ2MDczNDA1MzI0OTcxMjEyOQ.G2w4pY.7V3RiNHm_ztvUlXPjL0zpZP6S_Es1Dj2EdMNvM')
+# ПЛАН Б: Берем токен из переменных Koyeb
+token = os.getenv('DISCORD_TOKEN')
+if token:
+    bot.run(token)
+else:
+    print("❌ ERROR: DISCORD_TOKEN not found in Koyeb settings!")
+    
